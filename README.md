@@ -116,6 +116,15 @@ args = {
 }
 ```
 
+## Authenticated vs Unauthenticated calls
+Note that the library can be used out of the box without having a github access token. Most calls provide authenticated vs unauthenticated versions. For example:
+
+- `get_user(username)`
+vs
+- `get_authenticated_user()`
+
+The first option makes a call to `https://api.github.com/users/<username>` while the second makes a call to `https://api.github.com/user?access_token=XXXXXXX`.
+This allows you to use public calls for some operations where the token isn't neccessary.
 
 ## TODO
 - tests
