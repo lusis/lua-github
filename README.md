@@ -126,6 +126,19 @@ vs
 The first option makes a call to `https://api.github.com/users/<username>` while the second makes a call to `https://api.github.com/user?access_token=XXXXXXX`.
 This allows you to use public calls for some operations where the token isn't neccessary.
 
+## Debugging the underlying httpclient
+A feature of `httpclient` is the ability to get details about the last request made. The github library exposes the raw httpclient via `gh.hc`. Any functions available to straight httpclient can be used here as well like `res = gh.hc:get('https://httpbin.org/get')`.
+
+With every action in `httpclient` you can always call `get_last_request()` which will return some information about the driver as well as the data passed in to driver to make the request.
+For example while writing this library, I ran into some header related bugs with nginx. I was able to debug this information like so:
+
+```lua
+local inspect = require 'inspect'
+ngx.log(ngx.ERR, inspect(gh.hc:get_last_request().get_headers()))
+```
+
+Which is where I realized that my `accept` header wasn't being passed to the github api properly.
+
 ## TODO
 - tests
 - environment variable + bin script for a quick cli client
