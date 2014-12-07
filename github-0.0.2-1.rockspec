@@ -13,7 +13,8 @@ description = {
     license = "Apache"
 }
 dependencies = {
-  "httpclient ~> 0.1.0-7"
+  "httpclient ~> 0.1.0-7",
+  "lpeg ~> 0.12-1"
 }
 build = {
   type = "builtin",
