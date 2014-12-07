@@ -1,7 +1,10 @@
 -- @module github
 -- Copyright (C) 2014 John E. Vincent (lusis)
 
+-- TODO
+-- * clean up pagination logic. it's ugly as fuck and weaksauce
 local cjson = require 'cjson'
+local parsers = require 'github.parsers'
 
 local _M = {}
 local m = {}
@@ -15,6 +18,12 @@ local defaults = {
   access_base_url     = "https://github.com/login/oauth/access_token"
 }
 
+local function merge_tables(t1, t2)
+  for k,v in ipairs(t2) do
+    table.insert(t1, v)
+  end
+  return t1
+end
 
 function m.new(params)
   local self = {}
@@ -41,24 +50,42 @@ function _M:get_access_token()
   return self.access_token
 end
 
-function _M:unauthed_request(path, raw)
+function _M:unauthed_request(path, args, buffer)
   if not path then
     return nil, "no path specified"
   end
-  local url = defaults.api_url..path
+  local args = args or {}
+  local page_buffer = buffer or {}
+  local page_size = args.page_size or 30
+  local url = defaults.api_url..path.."?per_page="..page_size
   local res = self.hc:get(url,{headers = {accept = "application/json", ["content-type"] = "application/json", ["user-agent"] = self.user_agent}})
-  if raw then
+  if args.raw then
     return res, nil
   else
     if res.err then
       return nil, res.err
     else
-      return cjson.decode(res.body), nil
+      if res.headers["link"] then
+        -- we have pagination
+        local links = parsers.parse_link_header(res.headers["link"])
+        if links["next"] then
+          page_buffer = merge_tables(page_buffer, cjson.decode(res.body))
+          local u = self.hc:urlparse(links["next"])
+          local next_page = u.path.."?page="..u.query.page
+          return self:authed_request(next_page, args or {}, page_buffer)
+        else
+          -- on last page
+          page_buffer = merge_tables(page_buffer, cjson.decode(res.body))
+          return page_buffer, nil
+        end
+      else
+        return cjson.decode(res.body), nil
+      end
     end
   end
 end
 
-function _M:authed_request(path, raw)
+function _M:authed_request(path, args, buffer)
   if not path then
     return nil, "no path specified"
   end
@@ -66,15 +93,34 @@ function _M:authed_request(path, raw)
   if not token then
     return nil, "no access token"
   end
-  local url = defaults.api_url..path.."?access_token="..token
+  local args = args or {}
+  local page_buffer = buffer or {}
+  local args = args or {}
+  local page_size = args.page_size or 30
+  local url = defaults.api_url..path.."?per_page="..page_size.."&access_token="..token
   local res = self.hc:get(url,{headers = {accept = "application/json", ["content-type"] = "application/json", ["user-agent"] = self.user_agent}})
-  if raw then
+  if args.raw then
     return res, nil
   else
     if res.err then
       return nil, res.err
     else
-      return cjson.decode(res.body), nil
+      if res.headers["link"] then
+        -- we have pagination
+        local links = parsers.parse_link_header(res.headers["link"])
+        if links["next"] then
+          page_buffer = merge_tables(page_buffer, cjson.decode(res.body))
+          local u = self.hc:urlparse(links["next"])
+          local next_page = u.path.."?page="..u.query.page
+          return self:authed_request(next_page, args or {}, page_buffer)
+        else
+          -- on last page
+          page_buffer = merge_tables(page_buffer, cjson.decode(res.body))
+          return page_buffer, nil
+        end
+      else
+        return cjson.decode(res.body), nil
+      end
     end
   end
 end
@@ -176,7 +222,7 @@ end
 
 function _M:get_org(org_name)
   if not org_name then return nil, "must specify org name" end
-  res, err = self:unauthed_request("/orgs/"..org_name, true)
+  res, err = self:unauthed_request("/orgs/"..org_name, {raw = true})
   if res.code ~= 200 then
     return nil, res.err
   else
@@ -186,7 +232,7 @@ end
 
 function _M:get_authed_org(org_name)
   if not org_name then return nil, "must specify org name" end
-  res, err = self:authed_request("/orgs/"..org_name, true)
+  res, err = self:authed_request("/orgs/"..org_name, {raw = true})
   if res.code ~= 200 then
     return nil, res.err
   else
@@ -210,7 +256,7 @@ end
 function _M:get_user_org_membership(org_name, username)
   if not org_name then return nil, "must specify org name" end
   if not username then return nil, "must specify username" end
-  local res,_ = self:unauthed_request("/orgs/"..org_name.."/public_members/"..username, true)
+  local res,_ = self:unauthed_request("/orgs/"..org_name.."/public_members/"..username, {raw = true})
   if res.code == 404 then return false, nil end
   if res.code == 204 then return true, nil end
   return nil, res.err
@@ -220,7 +266,7 @@ end
 function _M:get_authed_user_org_membership(org_name, username)
   if not org_name then return nil, "must specify org name" end
   if not username then return nil, "must specify username" end
-  local res,_ = self:authed_request("/orgs/"..org_name.."/members/"..string.lower(username), true)
+  local res,_ = self:authed_request("/orgs/"..org_name.."/members/"..string.lower(username), {raw = true})
   if res.code == 404 then return false, nil end
   if res.code == 204 then return true, nil end
   return nil, res.err
@@ -232,7 +278,7 @@ end
 -- Additionally, OAuth users require the “read:org” scope.
 function _M:get_org_teams(org_name)
   if not org_name then return nil, "must specify org name" end
-  local res, err = self:authed_request("/orgs/"..org_name.."/teams", true)
+  local res, err = self:authed_request("/orgs/"..org_name.."/teams", {raw = true})
   if res.code == 403 then
     return nil, res.err
   else

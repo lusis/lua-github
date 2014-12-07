@@ -1,8 +1,8 @@
 package = "github"
-version = "0.0.1-1"
+version = "0.0.2-1"
 source = {
   url = "git://github.com/lusis/lua-github",
-  tag = "0.0.1-1"
+  tag = "0.0.2-1"
 }
 description = {
   summary = "Github API library",
@@ -13,11 +13,12 @@ description = {
     license = "Apache"
 }
 dependencies = {
-  "httpclient ~> 0.1.0-6"
+  "httpclient ~> 0.1.0-7"
 }
 build = {
   type = "builtin",
   modules = {
     ['github'] = 'src/github.lua',
+    ['github.parsers'] = 'src/github/parsers.lua'
   }
 }
