@@ -14,7 +14,8 @@ description = {
 }
 dependencies = {
   "httpclient ~> 0.1.0-7",
-  "lpeg ~> 0.12-1"
+  "lpeg ~> 0.12-1",
+  "lua-cjson ~> 2.1.0"
 }
 build = {
   type = "builtin",
