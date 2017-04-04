@@ -1,7 +1,6 @@
 local lpeg = require 'lpeg'
 local P, C, R, S, Cs, Cc, Ct, Cf, Cg, V, Cmt = lpeg.P, lpeg.C, lpeg.R, lpeg.S, lpeg.Cs, lpeg.Cc, lpeg.Ct, lpeg.Cf, lpeg.Cg, lpeg.V, lpeg.Cmt
 local lpegmatch, lpegpatterns, replacer = lpeg.match, lpeg.patterns, lpeg.replacer
-local inspect = require 'inspect'
 
 local function parse_link_header(str)
   -- This is our placeholder for matches
